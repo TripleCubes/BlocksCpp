@@ -7,7 +7,10 @@ OBJS = shaders $\
 		globals $\
 		ui $\
 		raycast $\
-		textures
+		textures $\
+		frameBuffers $\
+		mainScene $\
+		bloom
 
 INCLUDES = -I"./Libs/glfw-3.3.8.bin.WIN64/include" $\
 		-I"./Libs/glad/include" $\
@@ -31,10 +34,13 @@ rebuild:
 	g++ -c ./Codes/main.cpp -o ./Build/main.o $(INCLUDES) $(LIBS) $(FLAGS)
 	gcc -c ./Libs/glad/src/glad.c -o ./Build/glad.o $(INCLUDES) $(LIBS) $(FLAGS) 
 	g++ -c ./Codes/stb_image.cpp -o ./Build/stb_image.o -I"./Libs/stb_image"
-	g++ -o ./Build/blocks.exe $(OBJPATHS) ./Build/stb_image.o ./Build/glad.o ./Build/main.o $(INCLUDES) $(LIBS) $(FLAGS) -mwindows
+	g++ -o ./Build/blocks.exe $(OBJPATHS) ./Build/stb_image.o ./Build/glad.o ./Build/main.o $(INCLUDES) $(LIBS) $(FLAGS) -static-libgcc -static-libstdc++
+
+buildRelease:
+	g++ -o ./Release/blocks.exe $(OBJPATHS) ./Build/stb_image.o ./Build/glad.o ./Build/main.o $(INCLUDES) $(LIBS) $(FLAGS) -mwindows -static-libgcc -static-libstdc++
 
 ./Build/blocks.exe: $(OBJPATHS) ./Build/main.o ./Build/glad.o ./Build/stb_image.o
-	g++ -o ./Build/blocks.exe $(OBJPATHS) ./Build/stb_image.o ./Build/glad.o ./Build/main.o $(INCLUDES) $(LIBS) $(FLAGS) -mwindows
+	g++ -o ./Build/blocks.exe $(OBJPATHS) ./Build/stb_image.o ./Build/glad.o ./Build/main.o $(INCLUDES) $(LIBS) $(FLAGS) -static-libgcc -static-libstdc++
 
 ./Build/main.o: ./Codes/main.cpp
 	g++ -c ./Codes/main.cpp -o $@ $(INCLUDES) $(LIBS) $(FLAGS)

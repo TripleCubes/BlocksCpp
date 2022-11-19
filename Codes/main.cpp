@@ -10,6 +10,9 @@
 #include "globals.h"
 #include "ui.h"
 #include "raycast.h"
+#include "frameBuffers.h"
+#include "mainScene.h"
+#include "bloom.h"
 
 GLFWwindow* window = NULL;
 
@@ -33,6 +36,8 @@ bool BPressed = false;
 bool YPressed = false;
 bool RPressed = false;
 bool GPressed = false;
+bool NPressed = false;
+int bloomMode = 0;
 
 void onMouseMove(GLFWwindow* window, double mousex, double mousey)
 {
@@ -121,7 +126,6 @@ int main()
 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
-    glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE); 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); 
 
@@ -136,15 +140,47 @@ int main()
     glUniform3f(skyLightDirUniform, skyLightDir.x, skyLightDir.y, skyLightDir.z);
     glUniform3f(fragmentColorUniform, 1.0f, 0.97f, 0.8f);
 
-    previousTime = glfwGetTime();
-
     Player::init();
     ChunkLoader::init();
     UI::init();
     Raycast::init();
     Raycast::setRange(5);
 
-    int numberOfLights = 0;
+    FrameBuffer multisampleScreenFrameBuffer;
+    multisampleScreenFrameBuffer.init(true);
+    screenFrameBuffer.init(false);
+
+    float screenVerticies[12] = {
+        -1,  1,
+         1,  1,
+        -1, -1,
+        
+         1,  1,
+         1, -1,
+        -1, -1
+    };
+    unsigned int screenVAO, screenVBO;
+    glGenVertexArrays(1, &screenVAO);
+    glGenBuffers(1, &screenVBO);
+    glBindVertexArray(screenVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, screenVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(screenVerticies), screenVerticies, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    glBindVertexArray(0); 
+
+    glDeleteBuffers(1, &screenVBO);
+
+    Shader screenShader;
+    screenShader.init("./Shaders/screenVertex.glsl", "./Shaders/screenFragment.glsl", false);
+
+    Bloom::init();
+
+    previousTime = glfwGetTime();
 
     while (!glfwWindowShouldClose(window))
     {
@@ -207,14 +243,6 @@ int main()
             if (!MPressed)
             {
                 wireframeMode = !wireframeMode;
-                if (wireframeMode)
-                {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                }
-                else
-                {
-                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                }
             }
             MPressed = true;
         }
@@ -255,6 +283,23 @@ int main()
         else
         {
             FPressed = false;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS)
+        {
+            if (!NPressed)
+            {
+                bloomMode += 1;
+                if (bloomMode >= 3)
+                {
+                    bloomMode = 0;
+                }
+            }
+            NPressed = true;
+        }
+        else
+        {
+            NPressed = false;
         }
 
         Physics::move();
@@ -375,22 +420,56 @@ int main()
                                 toGlmVec3(playerPos + Vec3(0, 0.5, 0)),
                                 glm::vec3(0.0f, 1.0f, 0.0f));
         }
-                            
+
+        glBindFramebuffer(GL_FRAMEBUFFER, multisampleScreenFrameBuffer.getFrameBufferObject());                   
         glClearColor(0.31f, 0.31f, 0.32f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        if (wireframeMode)
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        }
+        else
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+        glEnable(GL_DEPTH_TEST);
 
         glUseProgram(defaultShader.getShaderProgram());
         glUniformMatrix4fv(defaultShader.getViewMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(viewMat));
 
-        ChunkLoader::loadChunksAround(playerPos.x, playerPos.y, playerPos.z, 4);
-        ChunkLoader::unloadChunksFarFrom(playerPos.x, playerPos.y, playerPos.z, 4);
-        ChunkLoader::draw();
-        Player::draw();
+        ChunkLoader::loadChunksAround(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE);
+        ChunkLoader::unloadChunksFarFrom(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE);
+        MainScene::draw();
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleScreenFrameBuffer.getFrameBufferObject()); 
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFrameBuffer.getFrameBufferObject()); 
+        glBlitFramebuffer(0, 0, currentWindowWidth, currentWindowHeight, 0, 0, currentWindowWidth, currentWindowHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+        Bloom::generateBlurTexture(screenFrameBuffer.getTexture());
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(screenShader.getShaderProgram());
+        glBindVertexArray(screenVAO);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glDisable(GL_DEPTH_TEST);
+
+        glUniform1i(glGetUniformLocation(screenShader.getShaderProgram(), "screenTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, screenFrameBuffer.getTexture());
+
+        glUniform1i(glGetUniformLocation(screenShader.getShaderProgram(), "blurTexture"), 1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, Bloom::getBlurTexture());
+
+        glUniform1i(glGetUniformLocation(screenShader.getShaderProgram(), "bloomMode"), bloomMode);
+
+        glDrawArrays(GL_TRIANGLES, 0, 6);
         if (!thirdPersonView)
         {
-            UI::drawCrosshair();
+            UI::drawCrosshair(screenFrameBuffer.getTexture());
         }
-        Raycast::drawBlockSelection();
  
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -407,7 +486,11 @@ int main()
     UI::release();
     Raycast::release();
 
+    Bloom::release();
     defaultShader.release();
+    screenFrameBuffer.release();
+    glDeleteVertexArrays(1, &screenVAO);
+    screenShader.release();
     glfwTerminate();
 
     return 0;

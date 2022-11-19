@@ -7,6 +7,7 @@
 #include "vectormath.h"
 #include "shaders.h"
 #include "globals.h"
+#include "frameBuffers.h"
 
 const float CROSSHAIR_WIDTH = 2;
 const float CROSSHAIR_HEIGHT = 14;
@@ -21,7 +22,7 @@ class UI
 
     public:
         static void init();
-        static void drawCrosshair();
+        static void drawCrosshair(unsigned int screenTexture);
         static void release();
 };
 

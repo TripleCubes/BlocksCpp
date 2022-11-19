@@ -67,10 +67,16 @@ void UI::init()
     crosshairWindowSizeUniformLocation = glGetUniformLocation(crosshairShader.getShaderProgram(), "windowSize");
 }
 
-void UI::drawCrosshair()
+void UI::drawCrosshair(unsigned int screenTexture)
 {
     glUseProgram(crosshairShader.getShaderProgram());
+
+    glUniform1i(glGetUniformLocation(crosshairShader.getShaderProgram(), "screenTexture"), 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, screenTexture);
+
     glUniform2f(crosshairWindowSizeUniformLocation, currentWindowWidth, currentWindowHeight);
+
     glBindVertexArray(crosshairVAO);
     glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
 }

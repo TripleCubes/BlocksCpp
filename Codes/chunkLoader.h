@@ -22,6 +22,7 @@
 
 const int CHUNK_SIZE = 16;
 const int MAX_NUMBER_OF_LIGHTS = 20;
+const int RENDER_DISTANCE = 4;
 
 enum BlockType
 {

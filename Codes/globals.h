@@ -15,8 +15,8 @@ struct Pos
 
 const unsigned int INIT_WINDOW_WIDTH = 800;
 const unsigned int INIT_WINDOW_HEIGHT = 500;
-const int INIT_WINDOW_POS_X = 10;
-const int INIT_WINDOW_POS_Y = 20;
+const int INIT_WINDOW_POS_X = 200;
+const int INIT_WINDOW_POS_Y = 50;
 
 const float FPS_CAP = 60;
 
