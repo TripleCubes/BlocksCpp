@@ -37,7 +37,7 @@ bool YPressed = false;
 bool RPressed = false;
 bool GPressed = false;
 bool NPressed = false;
-int bloomMode = 0;
+bool PPressed = false;
 
 void onMouseMove(GLFWwindow* window, double mousex, double mousey)
 {
@@ -289,11 +289,7 @@ int main()
         {
             if (!NPressed)
             {
-                bloomMode += 1;
-                if (bloomMode >= 3)
-                {
-                    bloomMode = 0;
-                }
+                bloom = !bloom;
             }
             NPressed = true;
         }
@@ -302,8 +298,22 @@ int main()
             NPressed = false;
         }
 
+        if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+        {
+            if (!PPressed)
+            {
+                physics = !physics;
+            }
+            PPressed = true;
+        }
+        else
+        {
+            PPressed = false;
+        }
+
         Physics::move();
         Raycast::update();
+        ChunkLoader::update();
 
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS)
         {
@@ -437,8 +447,6 @@ int main()
         glUseProgram(defaultShader.getShaderProgram());
         glUniformMatrix4fv(defaultShader.getViewMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(viewMat));
 
-        ChunkLoader::loadChunksAround(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE);
-        ChunkLoader::unloadChunksFarFrom(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE);
         MainScene::draw();
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleScreenFrameBuffer.getFrameBufferObject()); 
@@ -463,8 +471,6 @@ int main()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, Bloom::getBlurTexture());
 
-        glUniform1i(glGetUniformLocation(screenShader.getShaderProgram(), "bloomMode"), bloomMode);
-
         glDrawArrays(GL_TRIANGLES, 0, 6);
         if (!thirdPersonView)
         {
@@ -480,6 +486,9 @@ int main()
         deltaTime = glfwGetTime() - previousTime;
         previousTime = glfwGetTime();
     }
+
+    ChunkLoader::stopChunkLoadThread();
+    ChunkLoader::waitAsyncsToFinish();
 
     Player::release();
     ChunkLoader::release();

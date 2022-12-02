@@ -27,6 +27,8 @@ extern bool thirdPersonView;
 extern bool wireframeMode;
 extern bool flying;
 extern bool mouseLock;
+extern bool bloom;
+extern bool physics;
 
 bool isMax(float num1, float num2, float num3);
 bool isMin(float num1, float num2, float num3);

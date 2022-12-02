@@ -44,37 +44,46 @@ void Bloom::init()
 
 void Bloom::generateBlurTexture(unsigned int screenTexture)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, lightFilterFrameBuffer.getFrameBufferObject());                   
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glUseProgram(lightFilterShader.getShaderProgram());
-    glBindVertexArray(screenVAO);
-    glDisable(GL_DEPTH_TEST);
-    glUniform1i(glGetUniformLocation(lightFilterShader.getShaderProgram(), "screenTexture"), 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, screenTexture);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    if (bloom)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, lightFilterFrameBuffer.getFrameBufferObject());                   
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(lightFilterShader.getShaderProgram());
+        glBindVertexArray(screenVAO);
+        glDisable(GL_DEPTH_TEST);
+        glUniform1i(glGetUniformLocation(lightFilterShader.getShaderProgram(), "screenTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, screenTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, horizontalBlurFrameBuffer.getFrameBufferObject());                   
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glUseProgram(blurShader.getShaderProgram());
-    glBindVertexArray(screenVAO);
-    glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "screenTexture"), 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, lightFilterFrameBuffer.getTexture());
-    glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "horizontal"), 1);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindFramebuffer(GL_FRAMEBUFFER, horizontalBlurFrameBuffer.getFrameBufferObject());                   
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(blurShader.getShaderProgram());
+        glBindVertexArray(screenVAO);
+        glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "screenTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, lightFilterFrameBuffer.getTexture());
+        glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "horizontal"), 1);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurFrameBuffer.getFrameBufferObject());                   
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindVertexArray(screenVAO);
-    glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "screenTexture"), 0);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, horizontalBlurFrameBuffer.getTexture());
-    glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "horizontal"), 0);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurFrameBuffer.getFrameBufferObject());                   
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glBindVertexArray(screenVAO);
+        glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "screenTexture"), 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, horizontalBlurFrameBuffer.getTexture());
+        glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "horizontal"), 0);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+    else
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurFrameBuffer.getFrameBufferObject());
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+    }
 }
 
 unsigned int Bloom::getBlurTexture()

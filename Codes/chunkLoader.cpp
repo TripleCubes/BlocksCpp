@@ -131,15 +131,27 @@ void Chunk::load()
 {
     for (int x = 0; x < CHUNK_SIZE; x++)
     {
+        int worldX = chunkCoord.x*CHUNK_SIZE + x;
         for (int z = 0; z < CHUNK_SIZE; z++)
         {
-            blocks[x][ChunkLoader::getNoise(chunkCoord.x*CHUNK_SIZE + x, chunkCoord.z*CHUNK_SIZE + z)][z].blockType = BLOCK;
+            int worldZ = chunkCoord.z*CHUNK_SIZE + z;
+            int terrainHeight = ChunkLoader::getTerrainHeight(worldX, worldZ);
+            for (int y = 0; y < CHUNK_SIZE; y++)   
+            {
+                int worldY = chunkCoord.y*CHUNK_SIZE + y;
+                int caveAlphaValue = ChunkLoader::getCaveAlphaValue(worldX, worldY, worldZ);
+                if (worldY < terrainHeight and (caveAlphaValue > -0.05 and caveAlphaValue < 0.05))
+                {
+                    blocks[x][y][z].blockType = BLOCK;
+                }
+            }
         }
     }
 }
 
 void Chunk::reloadSurfaces()
 {
+    reloadingSurfaces = true;
     surfaces.clear();
 
     std::array<std::array<std::array<Block, CHUNK_SIZE>, CHUNK_SIZE>, CHUNK_SIZE> topChunk;
@@ -288,36 +300,9 @@ void Chunk::reloadSurfaces()
         }
     }
 
-
-
-    if (VAOgenerated)
-    {
-        glDeleteVertexArrays(1, &VAO);
-    }
-    else
-    {
-        VAOgenerated = true;
-    }
-
-    unsigned int VBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, surfaces.size() * sizeof(float), &surfaces[0], GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0); 
-    glBindVertexArray(0); 
-
-    glDeleteBuffers(1, &VBO);
+    VAOReloadRequest = true;
+    std::lock_guard<std::mutex> lock(chunkLoadMutex);
+    reloadingSurfaces = false;
 }
 
 void Chunk::draw()
@@ -366,51 +351,147 @@ void Chunk::breakBlock(int x, int y, int z)
     blocks[x][y][z].blockType = AIR;
 }
 
+ChunkLoadStatus Chunk::getChunkLoadStatus()
+{
+    return chunkLoadStatus;
+}
+
+void Chunk::setChunkLoadStatus(ChunkLoadStatus status)
+{
+    chunkLoadStatus = status;
+}
+
+bool Chunk::VAOReloadRequested()
+{
+    return VAOReloadRequest;
+}
+
+void Chunk::reloadVAO()
+{   
+    if (VAOgenerated)
+    {
+        glDeleteVertexArrays(1, &VAO);
+    }
+    else
+    {
+        VAOgenerated = true;
+    }
+
+    unsigned int VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, surfaces.size() * sizeof(float), &surfaces[0], GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+    glBindVertexArray(0); 
+
+    glDeleteBuffers(1, &VBO);
+
+    VAOReloadRequest = false;
+}
+
+bool Chunk::isReloadingSurfaces()
+{
+    return reloadingSurfaces;
+}
+
 
 
 std::unordered_map<std::string, Chunk> ChunkLoader::chunks;
-FastNoiseLite ChunkLoader::noise;
+FastNoiseLite ChunkLoader::terrainHeightNoise;
+FastNoiseLite ChunkLoader::caveNoise;
 
 Texture ChunkLoader::blockTextures;
 Texture ChunkLoader::blockLightTextures;
 
 std::vector<Light> ChunkLoader::lights;
 
+std::thread ChunkLoader::chunkLoadThread(ChunkLoader::chunkLoadThreadFunction);
+bool ChunkLoader::chunkLoadThreadStopped = false;
+
+void ChunkLoader::chunkLoadThreadFunction()
+{
+    while (not chunkLoadThreadStopped)
+    {
+        ChunkLoader::loadChunksAround(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE);
+    }
+}
+
 void ChunkLoader::loadChunk(int x, int y, int z)
 {
-    if (!chunkLoaded(x, y, z))
+    std::string key = convertToKey(x, y, z);
+    ChunkLoadStatus chunkLoadStatus = getChunkLoadStatus(key);
+    if (chunkLoadStatus == NOT_LOADED)
     {
         Chunk chunk;
         chunk.init(x, y, z);
-        chunk.load();
-        chunk.reloadSurfaces();
+        chunks.insert(std::make_pair(key, chunk));
 
-        chunks.insert(std::make_pair(convertToKey(x, y, z), chunk));
+        chunks[key].load();
+        chunks[key].reloadSurfaces();
+        Pos chunkCoord = chunks[key].getCoord();
 
         if (chunkLoaded(x, y + 1, z))
         {
-            chunks[convertToKey(x, y + 1, z)].reloadSurfaces();
+            std::string key = convertToKey(x, y + 1, z);
+            if (!chunks[key].isReloadingSurfaces())
+            {
+                chunks[key].reloadSurfaces();
+            }
         }
         if (chunkLoaded(x, y - 1, z))
         {
-            chunks[convertToKey(x, y - 1, z)].reloadSurfaces();
+            std::string key = convertToKey(x, y - 1, z);
+            if (!chunks[key].isReloadingSurfaces())
+            {
+                chunks[key].reloadSurfaces();
+            }
         }
         if (chunkLoaded(x - 1, y, z))
         {
-            chunks[convertToKey(x - 1, y, z)].reloadSurfaces();
+            std::string key = convertToKey(x - 1, y, z);
+            if (!chunks[key].isReloadingSurfaces())
+            {
+                chunks[key].reloadSurfaces();
+            }
         }
         if (chunkLoaded(x + 1, y, z))
         {
-            chunks[convertToKey(x + 1, y, z)].reloadSurfaces();
+            std::string key = convertToKey(x + 1, y, z);
+            if (!chunks[key].isReloadingSurfaces())
+            {
+                chunks[key].reloadSurfaces();
+            }
         }
         if (chunkLoaded(x, y, z + 1))
         {
-            chunks[convertToKey(x, y, z + 1)].reloadSurfaces();
+            std::string key = convertToKey(x, y, z + 1);
+            if (!chunks[key].isReloadingSurfaces())
+            {
+                chunks[key].reloadSurfaces();
+            }
         }
         if (chunkLoaded(x, y, z - 1))
         {
-            chunks[convertToKey(x, y, z - 1)].reloadSurfaces();
+            std::string key = convertToKey(x, y, z - 1);
+            if (!chunks[key].isReloadingSurfaces())
+            {
+                chunks[key].reloadSurfaces();
+            }
         }
+
+        std::lock_guard<std::mutex> lock(chunkLoadMutex);
+        chunks[key].setChunkLoadStatus(LOADED);
     }
 }
 
@@ -430,10 +511,14 @@ std::unordered_map<std::string, Chunk>::iterator ChunkLoader::unloadChunk(int x,
 
 void ChunkLoader::init()
 {
-    noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-    noise.SetSeed(rand());
-    noise.SetFractalOctaves(3);
+    terrainHeightNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    terrainHeightNoise.SetSeed(rand());
+    terrainHeightNoise.SetFractalOctaves(3);
     // noise.SetFrequency();
+
+    caveNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    caveNoise.SetSeed(rand());
+    caveNoise.SetFractalOctaves(1);
 
     blockTextures.load("./Textures/blockTexturesUpScaled.png", LINEAR);
     blockLightTextures.load("./Textures/blockLightTexturesUpScaled.png", LINEAR);
@@ -464,9 +549,28 @@ void ChunkLoader::draw()
     }
 }
 
-int ChunkLoader::getNoise(int x, int z)
+void ChunkLoader::update()
 {
-    return (int)round((noise.GetNoise((float)x, (float)z)+1) / 2 * (CHUNK_SIZE-1));
+    for (std::unordered_map<std::string, Chunk>::iterator i = chunks.begin(); i != chunks.end(); i++)
+    {
+        if(i->second.VAOReloadRequested())
+        {
+            i->second.reloadVAO();
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(chunkLoadMutex);
+    ChunkLoader::unloadChunksFarFrom(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE);
+}
+
+int ChunkLoader::getTerrainHeight(int x, int z)
+{
+    return (int)round((terrainHeightNoise.GetNoise((float)x, (float)z)+1) / 2 * (CHUNK_SIZE-1));
+}
+
+int ChunkLoader::getCaveAlphaValue(int x, int y, int z)
+{
+    return (int)round(caveNoise.GetNoise((float)x, (float)y, (float)z));
 }
 
 std::string ChunkLoader::convertToKey(int x, int y, int z)
@@ -484,12 +588,58 @@ std::string ChunkLoader::convertToKey(int x, int y, int z)
 bool ChunkLoader::chunkLoaded(int x, int y, int z)
 {
     std::string key = convertToKey(x, y, z);
-    return chunks.find(key) != chunks.end();
+    if (chunks.find(key) != chunks.end())
+    {
+        return chunks[key].getChunkLoadStatus() == LOADED;
+    }
+    return false;
 }
 
 bool ChunkLoader::chunkLoaded(std::string key)
 {
-    return chunks.find(key) != chunks.end();
+    if (chunks.find(key) != chunks.end())
+    {
+        return chunks[key].getChunkLoadStatus() == LOADED;
+    }
+    return false;
+}
+
+bool ChunkLoader::chunkLoading(int x, int y, int z)
+{
+    std::string key = convertToKey(x, y, z);
+    if (chunks.find(key) != chunks.end())
+    {
+        return chunks[key].getChunkLoadStatus() == LOADING;
+    }    
+    return false;
+}
+
+bool ChunkLoader::chunkLoading(std::string key)
+{
+    if (chunks.find(key) != chunks.end())
+    {
+        return chunks[key].getChunkLoadStatus() == LOADING;
+    }
+    return false;
+}
+
+ChunkLoadStatus ChunkLoader::getChunkLoadStatus(int x, int y, int z)
+{
+    std::string key = convertToKey(x, y, z);
+    if (chunks.find(key) != chunks.end())
+    {
+        return chunks[key].getChunkLoadStatus();
+    }
+    return NOT_LOADED;
+}
+
+ChunkLoadStatus ChunkLoader::getChunkLoadStatus(std::string key)
+{
+    if (chunks.find(key) != chunks.end())
+    {
+        return chunks[key].getChunkLoadStatus();
+    }
+    return NOT_LOADED;
 }
 
 void ChunkLoader::loadChunksAround(float x, float y, float z, int renderDistance)
@@ -500,9 +650,12 @@ void ChunkLoader::loadChunksAround(float x, float y, float z, int renderDistance
 
     for (int x = chunkX - renderDistance; x <= chunkX + renderDistance; x++)
     {
-        for (int z = chunkZ - renderDistance; z <= chunkZ + renderDistance; z++)
+        for (int y = chunkY - renderDistance; y <= chunkY + renderDistance; y++)
         {
-            loadChunk(x, 0, z);
+            for (int z = chunkZ - renderDistance; z <= chunkZ + renderDistance; z++)
+            {
+                loadChunk(x, y, z);
+            }
         }
     }
 }
@@ -516,7 +669,8 @@ void ChunkLoader::unloadChunksFarFrom(float x, float y, float z, int renderDista
     for (std::unordered_map<std::string, Chunk>::iterator i = chunks.begin(); i != chunks.end();)
     {
         Pos chunkCoord = i->second.getCoord();
-        if (abs(chunkCoord.x - chunkX) > renderDistance || abs(chunkCoord.z - chunkZ) > renderDistance)
+        if (i->second.getChunkLoadStatus() == LOADED && !i->second.isReloadingSurfaces() && (abs(chunkCoord.x - chunkX) > renderDistance || abs(chunkCoord.z - chunkZ) > renderDistance
+        || abs(chunkCoord.y - chunkY) > renderDistance))
         {
             i = unloadChunk(chunkCoord.x, chunkCoord.y, chunkCoord.z);
         }
@@ -726,6 +880,16 @@ Texture ChunkLoader::getBlockTextures()
 Texture ChunkLoader::getBlockLightTextures()
 {
     return blockLightTextures;
+}
+
+void ChunkLoader::stopChunkLoadThread()
+{
+    chunkLoadThreadStopped = true;
+}
+
+void ChunkLoader::waitAsyncsToFinish()
+{
+    chunkLoadThread.join();
 }
 
 void ChunkLoader::release()

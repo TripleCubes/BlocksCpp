@@ -552,82 +552,85 @@ void Physics::move()
 		playerPos.y += playerCombinedVelocity.y * deltaTime;
 		playerPos.z += playerCombinedVelocity.z * deltaTime;
 
-		Vec3 position = {
-			playerPos.x,
-			playerPos.y,
-			playerPos.z
-		};
-		Collision collision = getCollision(position);
-
-		bool preserveVelocityX = true;
-		bool preserveVelocityY = true;
-		bool preserveVelocityZ = true;
-
-		if (getPush(collision, PUSH_Y, playerCombinedVelocity) > 0)
+		if (physics)
 		{
-			preserveVelocityY = false;
-		}
-		if (getPush(collision, PUSH_X, playerCombinedVelocity) > 0)
-		{
-			preserveVelocityX = false;
-		}
-		if (getPush(collision, PUSH_Z, playerCombinedVelocity) > 0)
-		{
-			preserveVelocityZ = false;
-		}
+			Vec3 position = {
+				playerPos.x,
+				playerPos.y,
+				playerPos.z
+			};
+			Collision collision = getCollision(position);
 
-		push(collision, PUSH_X, playerCombinedVelocity);
-		push(collision, PUSH_Y, playerCombinedVelocity);
-		push(collision, PUSH_Z, playerCombinedVelocity);
+			bool preserveVelocityX = true;
+			bool preserveVelocityY = true;
+			bool preserveVelocityZ = true;
 
-		for (int i = 0; i < 3; i++)
-		{
-			if (isMax(getPush(collision, PUSH_X, playerCombinedVelocity), getPush(collision, PUSH_Y, playerCombinedVelocity), getPush(collision, PUSH_Z, playerCombinedVelocity)))
+			if (getPush(collision, PUSH_Y, playerCombinedVelocity) > 0)
 			{
-				if (!willCollideAfterUnpush(collision, PUSH_X, playerCombinedVelocity))
-				{
-					unpush(collision, PUSH_X, playerCombinedVelocity);
-					preserveVelocityX = true;
-				}
-				collision.left = 0;
-				collision.right = 0;
+				preserveVelocityY = false;
 			}
-			else if (isMax(getPush(collision, PUSH_Y, playerCombinedVelocity), getPush(collision, PUSH_X, playerCombinedVelocity), getPush(collision, PUSH_Z, playerCombinedVelocity)))
+			if (getPush(collision, PUSH_X, playerCombinedVelocity) > 0)
 			{
-				if (!willCollideAfterUnpush(collision, PUSH_Y, playerCombinedVelocity))
-				{
-					unpush(collision, PUSH_Y, playerCombinedVelocity);
-					preserveVelocityY = true;
-				}
-				collision.top = 0;
-				collision.bottom = 0;
+				preserveVelocityX = false;
 			}
-			else
+			if (getPush(collision, PUSH_Z, playerCombinedVelocity) > 0)
 			{
-				if (!willCollideAfterUnpush(collision, PUSH_Z, playerCombinedVelocity))
-				{
-					unpush(collision, PUSH_Z, playerCombinedVelocity);
-					preserveVelocityZ = true;
-				}
-				collision.forward = 0;
-				collision.backward = 0;
+				preserveVelocityZ = false;
 			}
-		}
-		
-		if (!preserveVelocityX)
-		{
-			playerMoveVelocity.x = 0;
-			playerVelocity.x = 0;
-		}
-		if (!preserveVelocityY)
-		{
-			playerMoveVelocity.y = 0;
-			playerVelocity.y = 0;
-		}
-		if (!preserveVelocityZ)
-		{
-			playerMoveVelocity.z = 0;
-			playerVelocity.z = 0;
+
+			push(collision, PUSH_X, playerCombinedVelocity);
+			push(collision, PUSH_Y, playerCombinedVelocity);
+			push(collision, PUSH_Z, playerCombinedVelocity);
+
+			for (int i = 0; i < 3; i++)
+			{
+				if (isMax(getPush(collision, PUSH_X, playerCombinedVelocity), getPush(collision, PUSH_Y, playerCombinedVelocity), getPush(collision, PUSH_Z, playerCombinedVelocity)))
+				{
+					if (!willCollideAfterUnpush(collision, PUSH_X, playerCombinedVelocity))
+					{
+						unpush(collision, PUSH_X, playerCombinedVelocity);
+						preserveVelocityX = true;
+					}
+					collision.left = 0;
+					collision.right = 0;
+				}
+				else if (isMax(getPush(collision, PUSH_Y, playerCombinedVelocity), getPush(collision, PUSH_X, playerCombinedVelocity), getPush(collision, PUSH_Z, playerCombinedVelocity)))
+				{
+					if (!willCollideAfterUnpush(collision, PUSH_Y, playerCombinedVelocity))
+					{
+						unpush(collision, PUSH_Y, playerCombinedVelocity);
+						preserveVelocityY = true;
+					}
+					collision.top = 0;
+					collision.bottom = 0;
+				}
+				else
+				{
+					if (!willCollideAfterUnpush(collision, PUSH_Z, playerCombinedVelocity))
+					{
+						unpush(collision, PUSH_Z, playerCombinedVelocity);
+						preserveVelocityZ = true;
+					}
+					collision.forward = 0;
+					collision.backward = 0;
+				}
+			}
+			
+			if (!preserveVelocityX)
+			{
+				playerMoveVelocity.x = 0;
+				playerVelocity.x = 0;
+			}
+			if (!preserveVelocityY)
+			{
+				playerMoveVelocity.y = 0;
+				playerVelocity.y = 0;
+			}
+			if (!preserveVelocityZ)
+			{
+				playerMoveVelocity.z = 0;
+				playerVelocity.z = 0;
+			}
 		}
 	}
 

@@ -32,7 +32,7 @@ vec3 calcPointLights()
         float diff = max(dot(normal, lightDir), 0);
         float distance = length(pointLights[i].pos - fragmentPos);
         float attenuation = 1.0 / (1 + 0.09 * distance + 0.032 * (distance * distance));  
-        result += (blockTextureFragmentColor.xyz*0.5 + blockTextureFragmentColor.xyz*diff*0.5) * (attenuation * pointLights[i].color);
+        result += (blockTextureFragmentColor.xyz*0.8 + blockTextureFragmentColor.xyz*diff*0.8) * attenuation * pointLights[i].color;
     }
     return result;
 }
@@ -47,7 +47,7 @@ void main()
     float diff = max(dot(normal, lightDir), 0);
     
     vec3 result = blockTextureFragmentColor.xyz*0.1 + blockTextureFragmentColor.xyz*diff*0.1 + calcPointLights();
-    result += vec3(blockTextureFragmentColor * blockLightTextureFragmentColor)*0.5;
+    result += vec3(blockTextureFragmentColor * blockLightTextureFragmentColor)*1;
     
     outputColor = vec4(result, 1.0);
 }

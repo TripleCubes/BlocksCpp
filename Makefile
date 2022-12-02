@@ -10,8 +10,8 @@ OBJS = shaders $\
 		textures $\
 		frameBuffers $\
 		mainScene $\
-		bloom
-
+		bloom 
+		
 INCLUDES = -I"./Libs/glfw-3.3.8.bin.WIN64/include" $\
 		-I"./Libs/glad/include" $\
 		-I"./Libs/glm" $\

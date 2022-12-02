@@ -7,6 +7,8 @@ bool thirdPersonView = false;
 bool wireframeMode = false;
 bool flying = true;
 bool mouseLock = true;
+bool bloom = false;
+bool physics = true;
 
 bool isMax(float num1, float num2, float num3)
 {

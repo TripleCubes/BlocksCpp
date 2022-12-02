@@ -14,15 +14,20 @@
 #include <time.h>
 #include <unordered_map>
 #include <string>
+#include <thread>
+#include <mutex>
 
 #include "shaders.h"
 #include "globals.h"
 #include "textures.h"
 #include "vectormath.h"
+#include "player.h"
 
 const int CHUNK_SIZE = 16;
 const int MAX_NUMBER_OF_LIGHTS = 20;
-const int RENDER_DISTANCE = 4;
+const int RENDER_DISTANCE = 6;
+
+static std::mutex chunkLoadMutex;
 
 enum BlockType
 {
@@ -78,6 +83,13 @@ struct Light
     Vec3 color;
 };
 
+enum ChunkLoadStatus
+{
+    NOT_LOADED,
+    LOADED,
+    LOADING
+};
+
 class Chunk
 {
     private:
@@ -87,6 +99,10 @@ class Chunk
 
         unsigned int VAO;
         bool VAOgenerated = false;
+
+        ChunkLoadStatus chunkLoadStatus = LOADING;
+        bool VAOReloadRequest = false;
+        bool reloadingSurfaces = false;
 
         void addBlockSurface(float x, float y, float z, Dir dir, BlockTexturePos blockTexturePosX, BlockTexturePos blockTexturePosY);
 
@@ -104,6 +120,7 @@ class Chunk
     public:
         void init(int x, int y, int z);
         void load();
+
         void reloadSurfaces();
         void draw();
         Pos getCoord();
@@ -111,6 +128,12 @@ class Chunk
         std::array<std::array<std::array<Block, CHUNK_SIZE>, CHUNK_SIZE>, CHUNK_SIZE> getChunkBlocks();
         void placeBlock(int x, int y, int z, BlockType blockType);
         void breakBlock(int x, int y, int z);
+        ChunkLoadStatus getChunkLoadStatus();
+        void setChunkLoadStatus(ChunkLoadStatus status);
+        bool VAOReloadRequested();
+        void reloadVAO();
+        bool isReloadingSurfaces();
+
         void release();
 };
 
@@ -119,7 +142,8 @@ class ChunkLoader
     private:
         static std::unordered_map<std::string, Chunk> chunks;
 
-        static FastNoiseLite noise;
+        static FastNoiseLite terrainHeightNoise;
+        static FastNoiseLite caveNoise;
 
         static void loadChunk(int x, int y, int z);
         static std::unordered_map<std::string, Chunk>::iterator unloadChunk(int x, int y, int z);
@@ -129,21 +153,39 @@ class ChunkLoader
 
         static std::vector<Light> lights;
 
+        static std::thread chunkLoadThread;
+        static bool chunkLoadThreadStopped;
+        static void chunkLoadThreadFunction();
+
     public:
         static void init();
         static void draw();
-        static int getNoise(int x, int z);
+        static void update();
+
+        static int getTerrainHeight(int x, int z);
+        static int getCaveAlphaValue(int x, int y, int z);
+
         static std::string convertToKey(int x, int y, int z);
         static void loadChunksAround(float x, float y, float z, int renderDistance);
         static void unloadChunksFarFrom(float x, float y, float z, int renderDistance);
+
         static bool chunkLoaded(int x, int y, int z);
         static bool chunkLoaded(std::string key);
+        static bool chunkLoading(int x, int y, int z);
+        static bool chunkLoading(std::string key);
+        static ChunkLoadStatus getChunkLoadStatus(int x, int y, int z);
+        static ChunkLoadStatus getChunkLoadStatus(std::string key);
+
         static bool getChunkBlocks(int x, int y, int z, std::array<std::array<std::array<Block, CHUNK_SIZE>, CHUNK_SIZE>, CHUNK_SIZE> &blocks);
         static Block getBlock(int x, int y, int z);
         static void placeBlock(int x, int y, int z, BlockType blockType);
         static void breakBlock(int x, int y, int z);
         static Texture getBlockTextures();
         static Texture getBlockLightTextures();
+
+        static void stopChunkLoadThread();
+        static void waitAsyncsToFinish();
+
         static void release();
 };
 

@@ -8,7 +8,7 @@ uniform sampler2D screenTexture;
 void main()
 {
     vec3 result = texture(screenTexture, fragmentTextureCoords).xyz;
-    if (result.x < 0.95 && result.y < 0.95 && result.z < 0.95)
+    if (result.x < 1.5 && result.y < 1.5 && result.z < 1.5)
     {
         result = vec3(0, 0, 0);
     }
