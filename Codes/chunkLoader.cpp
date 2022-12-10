@@ -135,12 +135,29 @@ void Chunk::load()
         for (int z = 0; z < CHUNK_SIZE; z++)
         {
             int worldZ = chunkCoord.z*CHUNK_SIZE + z;
-            int terrainHeight = ChunkLoader::getTerrainHeight(worldX, worldZ);
+            float terrainHeight1 = ChunkLoader::getTerrainHeight1(worldX, worldZ);
+            float terrainHeight2 = ChunkLoader::getTerrainHeight2(worldX, worldZ);
+            float combinedTerrainHeight = terrainHeight1 * 0.6 + terrainHeight2 * 0.4;
             for (int y = 0; y < CHUNK_SIZE; y++)   
             {
                 int worldY = chunkCoord.y*CHUNK_SIZE + y;
-                int caveAlphaValue = ChunkLoader::getCaveAlphaValue(worldX, worldY, worldZ);
-                if (worldY < terrainHeight and (caveAlphaValue > -0.05 and caveAlphaValue < 0.05))
+                float terrainAlphaValue = ChunkLoader::getTerrainAlphaValue(worldX, worldY, worldZ);
+                float caveTerrainDistanceEffect = ((combinedTerrainHeight + 1) / 2) * 0.9 + 0.1;
+                float terrainHeight = ChunkLoader::convertToBlockHeight(combinedTerrainHeight);
+                float caveHeight = -30*caveTerrainDistanceEffect + ChunkLoader::convertToBlockHeight(combinedTerrainHeight);
+                float terrainAlphaValuesEffect = ((float)worldY - caveHeight) / (terrainHeight - caveHeight);
+
+                float cheeseCaveAlphaValue = ChunkLoader::getCheeseCaveAlphaValue(worldX, worldY, worldZ);
+                float noodleCaveAlphaValue1 = ChunkLoader::getNoodleCaveAlphaValue1(worldX, worldY, worldZ);
+                float noodleCaveAlphaValue2 = ChunkLoader::getNoodleCaveAlphaValue2(worldX, worldY, worldZ);
+
+                float cheeseCaveAlphaValueEffect = (caveHeight - 200 - worldY) / 400; 
+                if (cheeseCaveAlphaValueEffect > 0.5)
+                {
+                    cheeseCaveAlphaValueEffect = 0.5;
+                }
+                if (!(terrainAlphaValue > -terrainAlphaValuesEffect) && !(cheeseCaveAlphaValue > 0.5 - cheeseCaveAlphaValueEffect)
+                && !(noodleCaveAlphaValue1 > -0.15 && noodleCaveAlphaValue1 < 0.15 && noodleCaveAlphaValue2 > -0.3 && noodleCaveAlphaValue2 < 0.3))
                 {
                     blocks[x][y][z].blockType = BLOCK;
                 }
@@ -409,7 +426,11 @@ bool Chunk::isReloadingSurfaces()
 
 std::unordered_map<std::string, Chunk> ChunkLoader::chunks;
 FastNoiseLite ChunkLoader::terrainHeightNoise;
-FastNoiseLite ChunkLoader::caveNoise;
+FastNoiseLite ChunkLoader::terrainHeightNoise2;
+FastNoiseLite ChunkLoader::terrainNoise3d;
+FastNoiseLite ChunkLoader::cheeseCaveNoise;
+FastNoiseLite ChunkLoader::noodleCaveNoise1;
+FastNoiseLite ChunkLoader::noodleCaveNoise2;
 
 Texture ChunkLoader::blockTextures;
 Texture ChunkLoader::blockLightTextures;
@@ -514,11 +535,32 @@ void ChunkLoader::init()
     terrainHeightNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
     terrainHeightNoise.SetSeed(rand());
     terrainHeightNoise.SetFractalOctaves(3);
-    // noise.SetFrequency();
+    terrainHeightNoise.SetFrequency(0.005);
 
-    caveNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-    caveNoise.SetSeed(rand());
-    caveNoise.SetFractalOctaves(1);
+    terrainHeightNoise2.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    terrainHeightNoise2.SetSeed(rand());
+    terrainHeightNoise2.SetFractalOctaves(1);
+    terrainHeightNoise2.SetFrequency(0.002);
+
+    terrainNoise3d.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    terrainNoise3d.SetSeed(rand());
+    terrainNoise3d.SetFractalOctaves(3);
+    terrainNoise3d.SetFrequency(0.02);
+
+    cheeseCaveNoise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    cheeseCaveNoise.SetSeed(rand());
+    cheeseCaveNoise.SetFractalOctaves(3);
+    cheeseCaveNoise.SetFrequency(0.02);
+    
+    noodleCaveNoise1.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    noodleCaveNoise1.SetSeed(rand());
+    noodleCaveNoise1.SetFractalOctaves(3);
+    noodleCaveNoise1.SetFrequency(0.02);
+
+    noodleCaveNoise2.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+    noodleCaveNoise2.SetSeed(rand());
+    noodleCaveNoise2.SetFractalOctaves(3);
+    noodleCaveNoise2.SetFrequency(0.02);
 
     blockTextures.load("./Textures/blockTexturesUpScaled.png", LINEAR);
     blockLightTextures.load("./Textures/blockLightTexturesUpScaled.png", LINEAR);
@@ -560,17 +602,63 @@ void ChunkLoader::update()
     }
 
     std::lock_guard<std::mutex> lock(chunkLoadMutex);
-    ChunkLoader::unloadChunksFarFrom(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE);
+    ChunkLoader::unloadChunksFarFrom(playerPos.x, playerPos.y, playerPos.z, RENDER_DISTANCE + 2);
 }
 
-int ChunkLoader::getTerrainHeight(int x, int z)
+float ChunkLoader::getTerrainHeight1(int x, int z)
 {
-    return (int)round((terrainHeightNoise.GetNoise((float)x, (float)z)+1) / 2 * (CHUNK_SIZE-1));
+    return convertTerrainHeight1(terrainHeightNoise.GetNoise((float)x, (float)z));
 }
 
-int ChunkLoader::getCaveAlphaValue(int x, int y, int z)
+float ChunkLoader::getTerrainHeight2(int x, int z)
 {
-    return (int)round(caveNoise.GetNoise((float)x, (float)y, (float)z));
+    return terrainHeightNoise2.GetNoise((float)x, (float)z);
+}
+
+float ChunkLoader::convertToBlockHeight(float terrainHeight)
+{
+    return (terrainHeight + 1)/2 * 80;
+}
+
+float ChunkLoader::convertTerrainHeight1(float normalizedTerrainHeight)
+{
+    if (normalizedTerrainHeight < -0.1726)
+    {
+        return normalizedTerrainHeight/9 - (float)8/9;
+    }
+    if (normalizedTerrainHeight < -0.0467)
+    {
+        return normalizedTerrainHeight*7 + 0.3;
+    }
+    if (normalizedTerrainHeight < 0.4667)
+    {
+        return normalizedTerrainHeight/1.75;
+    }
+    if (normalizedTerrainHeight < 0.5645)
+    {
+        return normalizedTerrainHeight*7 - 3;
+    }
+    return normalizedTerrainHeight/9 + (float)8/9;
+}
+
+float ChunkLoader::getTerrainAlphaValue(int x, int y, int z)
+{
+    return terrainNoise3d.GetNoise((float)x, (float)y, (float)z);
+}
+
+float ChunkLoader::getCheeseCaveAlphaValue(int x, int y, int z)
+{
+    return cheeseCaveNoise.GetNoise((float)x, (float)y, (float)z);
+}
+
+float ChunkLoader::getNoodleCaveAlphaValue1(int x, int y, int z)
+{
+    return noodleCaveNoise1.GetNoise((float)x, (float)y, (float)z);
+}
+
+float ChunkLoader::getNoodleCaveAlphaValue2(int x, int y, int z)
+{
+    return noodleCaveNoise2.GetNoise((float)x, (float)y, (float)z);
 }
 
 std::string ChunkLoader::convertToKey(int x, int y, int z)
@@ -774,27 +862,27 @@ void ChunkLoader::placeBlock(int x, int y, int z, BlockType blockType)
     }
     if (blockType == BLUE_LIGHT)
     {
-        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)BLUE_LIGHT_BLOCK_LIGHT_COLOR_R / 256, 
-                                                                (float)BLUE_LIGHT_BLOCK_LIGHT_COLOR_G / 256, 
-                                                                (float)BLUE_LIGHT_BLOCK_LIGHT_COLOR_B / 256)});
+        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)BLUE_LIGHT_BLOCK_LIGHT_COLOR_R / 255, 
+                                                                (float)BLUE_LIGHT_BLOCK_LIGHT_COLOR_G / 255, 
+                                                                (float)BLUE_LIGHT_BLOCK_LIGHT_COLOR_B / 255)});
     }
     if (blockType == YELLOW_LIGHT)
     {
-        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)YELLOW_LIGHT_BLOCK_LIGHT_COLOR_R / 256, 
-                                                                (float)YELLOW_LIGHT_BLOCK_LIGHT_COLOR_G / 256, 
-                                                                (float)YELLOW_LIGHT_BLOCK_LIGHT_COLOR_B / 256)});
+        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)YELLOW_LIGHT_BLOCK_LIGHT_COLOR_R / 255, 
+                                                                (float)YELLOW_LIGHT_BLOCK_LIGHT_COLOR_G / 255, 
+                                                                (float)YELLOW_LIGHT_BLOCK_LIGHT_COLOR_B / 255)});
     }
     if (blockType == GREEN_LIGHT)
     {
-        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)GREEN_LIGHT_BLOCK_LIGHT_COLOR_R / 256, 
-                                                                (float)GREEN_LIGHT_BLOCK_LIGHT_COLOR_G / 256, 
-                                                                (float)GREEN_LIGHT_BLOCK_LIGHT_COLOR_B / 256)});
+        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)GREEN_LIGHT_BLOCK_LIGHT_COLOR_R / 255, 
+                                                                (float)GREEN_LIGHT_BLOCK_LIGHT_COLOR_G / 255, 
+                                                                (float)GREEN_LIGHT_BLOCK_LIGHT_COLOR_B / 255)});
     }
     if (blockType == RED_LIGHT)
     {
-        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)RED_LIGHT_BLOCK_LIGHT_COLOR_R / 256, 
-                                                                (float)RED_LIGHT_BLOCK_LIGHT_COLOR_G / 256, 
-                                                                (float)RED_LIGHT_BLOCK_LIGHT_COLOR_B / 256)});
+        lights.push_back({Vec3(x + 0.5, y + 0.5, z + 0.5), Vec3((float)RED_LIGHT_BLOCK_LIGHT_COLOR_R / 255, 
+                                                                (float)RED_LIGHT_BLOCK_LIGHT_COLOR_G / 255, 
+                                                                (float)RED_LIGHT_BLOCK_LIGHT_COLOR_B / 255)});
     }
 }
 

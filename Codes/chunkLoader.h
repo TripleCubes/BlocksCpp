@@ -143,7 +143,11 @@ class ChunkLoader
         static std::unordered_map<std::string, Chunk> chunks;
 
         static FastNoiseLite terrainHeightNoise;
-        static FastNoiseLite caveNoise;
+        static FastNoiseLite terrainHeightNoise2;
+        static FastNoiseLite terrainNoise3d;
+        static FastNoiseLite cheeseCaveNoise;
+        static FastNoiseLite noodleCaveNoise1;
+        static FastNoiseLite noodleCaveNoise2;
 
         static void loadChunk(int x, int y, int z);
         static std::unordered_map<std::string, Chunk>::iterator unloadChunk(int x, int y, int z);
@@ -162,8 +166,14 @@ class ChunkLoader
         static void draw();
         static void update();
 
-        static int getTerrainHeight(int x, int z);
-        static int getCaveAlphaValue(int x, int y, int z);
+        static float getTerrainHeight1(int x, int z);
+        static float convertTerrainHeight1(float normalizedTerrainHeight);
+        static float getTerrainHeight2(int x, int z);
+        static float convertToBlockHeight(float terrainHeight);
+        static float getTerrainAlphaValue(int x, int y, int z);
+        static float getCheeseCaveAlphaValue(int x, int y, int z);
+        static float getNoodleCaveAlphaValue1(int x, int y, int z);
+        static float getNoodleCaveAlphaValue2(int x, int y, int z);
 
         static std::string convertToKey(int x, int y, int z);
         static void loadChunksAround(float x, float y, float z, int renderDistance);
