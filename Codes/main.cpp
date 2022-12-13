@@ -143,8 +143,8 @@ int main()
     glUniform3f(skyLightDirUniform, skyLightDir.x, skyLightDir.y, skyLightDir.z);
     glUniform3f(fragmentColorUniform, 1.0f, 0.97f, 0.8f);
 
-    glUseProgram(GBuffer::getPositionShaderProgram());
-    glUniformMatrix4fv(GBuffer::getPositionProjectionMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(projectionMat));
+    glUseProgram(GBuffer::getShaderProgram());
+    glUniformMatrix4fv(GBuffer::getProjectionMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(projectionMat));
     glUniform3f(skyLightDirUniform, skyLightDir.x, skyLightDir.y, skyLightDir.z);
     glUniform3f(fragmentColorUniform, 1.0f, 0.97f, 0.8f);
 
@@ -476,8 +476,8 @@ int main()
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
-        glUseProgram(GBuffer::getPositionShaderProgram());
-        glUniformMatrix4fv(GBuffer::getPositionViewMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(viewMat));
+        glUseProgram(GBuffer::getShaderProgram());
+        glUniformMatrix4fv(GBuffer::getViewMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(viewMat));
         ChunkLoader::drawGBuffer();
 
 

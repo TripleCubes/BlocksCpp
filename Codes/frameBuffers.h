@@ -12,11 +12,13 @@ class FrameBuffer
     private:
         unsigned int FBO;
         unsigned int texture;
+        unsigned int texture2;
 
     public:
-        void init(bool multisample);
+        void init(bool multisample, int numberOfTextures = 1);
         unsigned int getFrameBufferObject();
         unsigned int getTexture();
+        unsigned int getTexture2();
         void release();
 };
 

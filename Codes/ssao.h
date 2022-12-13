@@ -20,7 +20,7 @@ class SSAO
         static Shader blurShader;
         static unsigned int screenVAO;
 
-        static std::array<Vec3, 10> randomPoints; 
+        static std::array<Vec3, 20> randomPoints; 
         static std::array<Vec3, 16> randomDirs;
 
         static std::random_device randomDevice;

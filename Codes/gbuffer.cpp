@@ -1,46 +1,51 @@
 #include "gbuffer.h"
 
-FrameBuffer GBuffer::positionFrameBuffer;
-Shader GBuffer::positionShader;
+FrameBuffer GBuffer::frameBuffer;
+Shader GBuffer::shader;
 
 void GBuffer::init()
 {
-    positionFrameBuffer.init(false);
-    positionShader.init("./Shaders/GBuffer/positionVertex.glsl", "./Shaders/GBuffer/positionFragment.glsl", true);
+    frameBuffer.init(false, 2);
+    shader.init("./Shaders/GBuffer/gBufferVertex.glsl", "./Shaders/GBuffer/gBufferFragment.glsl", true);
 }
 
 void GBuffer::bindPositionFrameBuffer()
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, positionFrameBuffer.getFrameBufferObject());
+    glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer.getFrameBufferObject());
 }
 
 unsigned int GBuffer::getPositionTexture()
 {
-    return positionFrameBuffer.getTexture();
+    return frameBuffer.getTexture();
 }
 
-unsigned int GBuffer::getPositionShaderProgram()
+unsigned int GBuffer::getNormalTexture()
 {
-    return positionShader.getShaderProgram();
+    return frameBuffer.getTexture2();
 }
 
-int GBuffer::getPositionModelMatUniformLocation()
+unsigned int GBuffer::getShaderProgram()
 {
-    return positionShader.getModelMatUniformLocation();
+    return shader.getShaderProgram();
 }
 
-int GBuffer::getPositionViewMatUniformLocation()
+int GBuffer::getModelMatUniformLocation()
 {
-    return positionShader.getViewMatUniformLocation();
+    return shader.getModelMatUniformLocation();
 }
 
-int GBuffer::getPositionProjectionMatUniformLocation()
+int GBuffer::getViewMatUniformLocation()
 {
-    return positionShader.getProjectionMatUniformLocation();
+    return shader.getViewMatUniformLocation();
+}
+
+int GBuffer::getProjectionMatUniformLocation()
+{
+    return shader.getProjectionMatUniformLocation();
 }
 
 void GBuffer::release()
 {
-    positionFrameBuffer.release();
-    positionShader.release();
+    frameBuffer.release();
+    shader.release();
 }

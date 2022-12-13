@@ -6,7 +6,7 @@ in vec2 fragmentTextureCoords;
 uniform bool horizontal;
 uniform sampler2D screenTexture;
 
-const float blurAreaPixel = 5;
+const float blurAreaPixel = 3;
 
 float bell(float x)
 {
@@ -37,7 +37,7 @@ void main()
             result += texture(screenTexture, vec2(fragmentTextureCoords.x, y)).xyz * bell(y - fragmentTextureCoords.y);
             y += blurStep.y;
         }
-        result /= ((blurRange * 4) / blurStep.y);
+        result /= ((blurRange * 1.85) / blurStep.y);
     }
     else
     {
@@ -47,8 +47,9 @@ void main()
             result += texture(screenTexture, vec2(x, fragmentTextureCoords.y)).xyz * bell(x - fragmentTextureCoords.x);
             x += blurStep.x;
         }
-        result /= ((blurRange * 4) / blurStep.x);
+        result /= ((blurRange * 1.85) / blurStep.x);
     }
 
-    outputColor = vec4(result * 2, 1.0);
+    outputColor = vec4(result, 1.0);
+    // outputColor = vec4(texture(screenTexture, fragmentTextureCoords).xyz, 1.0);
 }

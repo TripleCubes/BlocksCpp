@@ -7,17 +7,18 @@
 class GBuffer
 {
     private:
-        static FrameBuffer positionFrameBuffer;
-        static Shader positionShader;
+        static FrameBuffer frameBuffer;
+        static Shader shader;
 
     public:
         static void init();
         static void bindPositionFrameBuffer();
         static unsigned int getPositionTexture();
-        static unsigned int getPositionShaderProgram();
-        static int getPositionModelMatUniformLocation();
-        static int getPositionViewMatUniformLocation();
-        static int getPositionProjectionMatUniformLocation();
+        static unsigned int getNormalTexture();
+        static unsigned int getShaderProgram();
+        static int getModelMatUniformLocation();
+        static int getViewMatUniformLocation();
+        static int getProjectionMatUniformLocation();
         static void release();
 };
 

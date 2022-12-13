@@ -7,7 +7,7 @@ Shader SSAO::ssaoShader;
 Shader SSAO::blurShader;
 unsigned int SSAO::screenVAO;
 
-std::array<Vec3, 10> SSAO::randomPoints; 
+std::array<Vec3, 20> SSAO::randomPoints; 
 std::array<Vec3, 16> SSAO::randomDirs;
 
 std::random_device SSAO::randomDevice;
@@ -102,10 +102,18 @@ void SSAO::generateSSAOTexture()
         glBindVertexArray(screenVAO);
         glDisable(GL_DEPTH_TEST);
         glUniformMatrix4fv(glGetUniformLocation(ssaoShader.getShaderProgram(), "viewMat"), 1, GL_FALSE, glm::value_ptr(viewMat));
+
         glUniform1i(glGetUniformLocation(ssaoShader.getShaderProgram(), "positionTexture"), 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, GBuffer::getPositionTexture());
+
+        glUniform1i(glGetUniformLocation(ssaoShader.getShaderProgram(), "normalTexture"), 1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, GBuffer::getNormalTexture());
+
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+
 
         glBindFramebuffer(GL_FRAMEBUFFER, horizontalBlurredAOFrameBuffer.getFrameBufferObject());                   
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -117,6 +125,8 @@ void SSAO::generateSSAOTexture()
         glBindTexture(GL_TEXTURE_2D, unblurredAOFrameBuffer.getTexture());
         glUniform1i(glGetUniformLocation(blurShader.getShaderProgram(), "horizontal"), 1);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+
 
         glBindFramebuffer(GL_FRAMEBUFFER, verticalBlurredAOFrameBuffer.getFrameBufferObject());                   
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);

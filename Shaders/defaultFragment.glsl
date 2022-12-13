@@ -46,7 +46,7 @@ void main()
     vec3 lightDir = normalize(-skyLightDir);
     float diff = max(dot(normal, lightDir), 0);
     
-    vec3 result = blockTextureFragmentColor.xyz*0.1 + blockTextureFragmentColor.xyz*diff*0.1 + calcPointLights();
+    vec3 result = blockTextureFragmentColor.xyz*0.8 + blockTextureFragmentColor.xyz*diff*0.8 + calcPointLights();
     result += vec3(blockTextureFragmentColor * blockLightTextureFragmentColor)*1;
     
     outputColor = vec4(result, 1.0);

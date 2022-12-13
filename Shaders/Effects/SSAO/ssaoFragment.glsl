@@ -4,8 +4,9 @@ out vec4 outputColor;
 in vec2 fragmentTextureCoords;
 
 uniform sampler2D positionTexture;
-int numberOfRandomPoints = 10;
-uniform vec3 randomPoints[10];
+uniform sampler2D normalTexture;
+int numberOfRandomPoints = 20;
+uniform vec3 randomPoints[20];
 int numberOfRandomDirs = 16;
 uniform vec3 randomDirs[16];
 
@@ -44,47 +45,36 @@ float rand(vec2 co){
 
 void main()
 {
-    vec3 result = vec3(0, 0, 0);
+    vec3 result = vec3(1, 1, 1);
+    vec3 normal = texture(normalTexture, fragmentTextureCoords).xyz;
     vec3 position = texture(positionTexture, fragmentTextureCoords).xyz;
-    if (position == vec3(0.0, 0.0, 0.0))
-    {
-        result = vec3(1, 1, 1);
-    } 
-    else
+    if (position != vec3(0.0, 0.0, 0.0))
     {
         for (int i = 0; i < numberOfRandomPoints; i++)
         {
             int randomDirIndex = abs(int(rand(fragmentTextureCoords * 100) * 100) % numberOfRandomDirs);
-            vec3 checkPosition = position + rotate3D(randomPoints[i], randomDirs[randomDirIndex]) * 0.5;
+            vec3 randomRotatedPoint = rotate3D(randomPoints[i], randomDirs[randomDirIndex]) * 0.5;
+            if (dot(randomRotatedPoint, normal) < 0)
+            {
+                continue;
+            }
+
+            vec3 checkPosition = position + randomRotatedPoint;
             vec4 screenCheckPosition = projectionMat * viewMat * vec4(checkPosition, 1.0);
             screenCheckPosition.xyz /= screenCheckPosition.w;
             vec4 positionTextureCheck = vec4(texture(positionTexture, (screenCheckPosition.xy + vec2(1.0)) / 2).xyz, 1.0);
+            if (distance(positionTextureCheck.xyz, checkPosition.xyz) > 0.5)
+            {
+                continue;
+            }
             positionTextureCheck = projectionMat * viewMat * positionTextureCheck;
             positionTextureCheck.xyz /= positionTextureCheck.w;
-            if (positionTextureCheck.z > screenCheckPosition.z)
+            if (positionTextureCheck.z < screenCheckPosition.z)
             {
-                result += vec3(1.0 / numberOfRandomPoints);
+                result -= vec3(2.0 / numberOfRandomPoints);
             }
         }
     }
-
-    // result += 0.2;
-    // if (result.x > 1.0)
-    // {
-    //     result.x = 1.0;
-    // }
-    // if (result.y > 1.0)
-    // {
-    //     result.y = 1.0;
-    // }
-    // if (result.z > 1.0)
-    // {
-    //     result.z = 1.0;
-    // }
-
-    // vec4 screenCheckPosition = projectionMat * viewMat * vec4(position, 1.0);
-    // screenCheckPosition.xyz /= screenCheckPosition.w;
-    // result = vec3(screenCheckPosition.z);
 
     outputColor = vec4(result, 1.0);
 }
