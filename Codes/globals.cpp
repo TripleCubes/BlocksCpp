@@ -9,6 +9,10 @@ bool flying = true;
 bool mouseLock = true;
 bool bloom = false;
 bool physics = true;
+bool ssao = false;
+
+glm::mat4 projectionMat = glm::mat4(1.0f);
+glm::mat4 viewMat = glm::mat4(1.0f);
 
 bool isMax(float num1, float num2, float num3)
 {

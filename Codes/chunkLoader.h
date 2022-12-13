@@ -22,6 +22,7 @@
 #include "textures.h"
 #include "vectormath.h"
 #include "player.h"
+#include "gbuffer.h"
 
 const int CHUNK_SIZE = 16;
 const int MAX_NUMBER_OF_LIGHTS = 20;
@@ -123,6 +124,7 @@ class Chunk
 
         void reloadSurfaces();
         void draw();
+        void drawGBuffer();
         Pos getCoord();
         Block getBlock(int x, int y, int z);
         std::array<std::array<std::array<Block, CHUNK_SIZE>, CHUNK_SIZE>, CHUNK_SIZE> getChunkBlocks();
@@ -164,6 +166,7 @@ class ChunkLoader
     public:
         static void init();
         static void draw();
+        static void drawGBuffer();
         static void update();
 
         static float getTerrainHeight1(int x, int z);

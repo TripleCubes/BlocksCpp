@@ -13,6 +13,8 @@
 #include "frameBuffers.h"
 #include "mainScene.h"
 #include "bloom.h"
+#include "ssao.h"
+#include "gbuffer.h"
 
 GLFWwindow* window = NULL;
 
@@ -38,6 +40,7 @@ bool RPressed = false;
 bool GPressed = false;
 bool NPressed = false;
 bool PPressed = false;
+bool OPressed = false;
 
 void onMouseMove(GLFWwindow* window, double mousex, double mousey)
 {
@@ -113,6 +116,7 @@ void GLinit()
     }
 
     defaultShader.init("./Shaders/defaultVertex.glsl", "./Shaders/defaultFragment.glsl", true);
+    GBuffer::init();
 }
 
 int main()
@@ -129,7 +133,6 @@ int main()
     glEnable(GL_MULTISAMPLE); 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); 
 
-    glm::mat4 projectionMat = glm::mat4(1.0f);
     projectionMat = glm::perspective(glm::radians(70.0f), (float)INIT_WINDOW_WIDTH/(float)INIT_WINDOW_HEIGHT, 0.1f, 300.0f);
 
     int skyLightDirUniform = glGetUniformLocation(defaultShader.getShaderProgram(), "skyLightDir");
@@ -137,6 +140,11 @@ int main()
     glUseProgram(defaultShader.getShaderProgram());
 
     glUniformMatrix4fv(defaultShader.getProjectionMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(projectionMat));
+    glUniform3f(skyLightDirUniform, skyLightDir.x, skyLightDir.y, skyLightDir.z);
+    glUniform3f(fragmentColorUniform, 1.0f, 0.97f, 0.8f);
+
+    glUseProgram(GBuffer::getPositionShaderProgram());
+    glUniformMatrix4fv(GBuffer::getPositionProjectionMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(projectionMat));
     glUniform3f(skyLightDirUniform, skyLightDir.x, skyLightDir.y, skyLightDir.z);
     glUniform3f(fragmentColorUniform, 1.0f, 0.97f, 0.8f);
 
@@ -179,6 +187,7 @@ int main()
     screenShader.init("./Shaders/screenVertex.glsl", "./Shaders/screenFragment.glsl", false);
 
     Bloom::init();
+    SSAO::init();
 
     previousTime = glfwGetTime();
 
@@ -311,6 +320,19 @@ int main()
             PPressed = false;
         }
 
+        if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+        {
+            if (!OPressed)
+            {
+                ssao = !ssao;
+            }
+            OPressed = true;
+        }
+        else
+        {
+            OPressed = false;
+        }
+
         Physics::move();
         Raycast::update();
         ChunkLoader::update();
@@ -417,7 +439,6 @@ int main()
             RPressed = false;
         }
 
-        glm::mat4 viewMat = glm::mat4(1.0f);
         if (!thirdPersonView)
         {
             viewMat = glm::lookAt(toGlmVec3(playerPos + Vec3(0, 0.5, 0)),
@@ -449,11 +470,24 @@ int main()
 
         MainScene::draw();
 
+
+
+        GBuffer::bindPositionFrameBuffer();                
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glUseProgram(GBuffer::getPositionShaderProgram());
+        glUniformMatrix4fv(GBuffer::getPositionViewMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(viewMat));
+        ChunkLoader::drawGBuffer();
+
+
+
         glBindFramebuffer(GL_READ_FRAMEBUFFER, multisampleScreenFrameBuffer.getFrameBufferObject()); 
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, screenFrameBuffer.getFrameBufferObject()); 
         glBlitFramebuffer(0, 0, currentWindowWidth, currentWindowHeight, 0, 0, currentWindowWidth, currentWindowHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
         Bloom::generateBlurTexture(screenFrameBuffer.getTexture());
+        SSAO::generateSSAOTexture();
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -470,6 +504,10 @@ int main()
         glUniform1i(glGetUniformLocation(screenShader.getShaderProgram(), "blurTexture"), 1);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, Bloom::getBlurTexture());
+
+        glUniform1i(glGetUniformLocation(screenShader.getShaderProgram(), "ssaoTexture"), 2);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, SSAO::getSSAOTexture());
 
         glDrawArrays(GL_TRIANGLES, 0, 6);
         if (!thirdPersonView)
@@ -496,6 +534,7 @@ int main()
     Raycast::release();
 
     Bloom::release();
+    SSAO::release();
     defaultShader.release();
     screenFrameBuffer.release();
     glDeleteVertexArrays(1, &screenVAO);

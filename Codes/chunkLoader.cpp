@@ -338,6 +338,18 @@ void Chunk::draw()
     glDrawArrays(GL_TRIANGLES, 0, surfaces.size() / 8);
 }
 
+void Chunk::drawGBuffer()
+{
+    glm::mat4 modelMat = glm::mat4(1.0f);
+    modelMat = glm::translate(modelMat, glm::vec3(chunkCoord.x*CHUNK_SIZE, chunkCoord.y*CHUNK_SIZE, chunkCoord.z*CHUNK_SIZE));
+    
+    glUseProgram(GBuffer::getPositionShaderProgram());
+    glUniformMatrix4fv(GBuffer::getPositionModelMatUniformLocation(), 1, GL_FALSE, glm::value_ptr(modelMat));
+
+    glBindVertexArray(VAO);
+    glDrawArrays(GL_TRIANGLES, 0, surfaces.size() / 8);
+}
+
 Pos Chunk::getCoord()
 {
     return chunkCoord;
@@ -588,6 +600,16 @@ void ChunkLoader::draw()
     for (std::unordered_map<std::string, Chunk>::iterator i = chunks.begin(); i != chunks.end(); i++)
     {
         i->second.draw();
+    }
+}
+
+void ChunkLoader::drawGBuffer()
+{
+    glUseProgram(GBuffer::getPositionShaderProgram());
+
+    for (std::unordered_map<std::string, Chunk>::iterator i = chunks.begin(); i != chunks.end(); i++)
+    {
+        i->second.drawGBuffer();
     }
 }
 

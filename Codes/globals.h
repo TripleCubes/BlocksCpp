@@ -1,6 +1,11 @@
 #ifndef HELPERFUNCTIONS_H
 #define HELPERFUNCTIONS_H
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/rotate_vector.hpp>
+
 enum Dir
 {
     TOP, BOTTOM, LEFT, RIGHT, FORWARD, BACKWARD
@@ -29,6 +34,10 @@ extern bool flying;
 extern bool mouseLock;
 extern bool bloom;
 extern bool physics;
+extern bool ssao;
+
+extern glm::mat4 projectionMat;
+extern glm::mat4 viewMat;
 
 bool isMax(float num1, float num2, float num3);
 bool isMin(float num1, float num2, float num3);

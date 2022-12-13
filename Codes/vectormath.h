@@ -14,6 +14,7 @@ struct Vec3
     float y = 0;
     float z = 0;
 
+    Vec3();
     Vec3(float x, float y, float z);
 
     Vec3 operator + (Vec3 vec);
